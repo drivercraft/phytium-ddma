@@ -100,7 +100,12 @@ mod tests {
 
         // Configure PL011 UART for DMA transmission
         info!("Configuring PL011 UART1 for DMA transmission...");
-        configure_pl011_dma_tx(uart_base.as_ptr() as usize);
+        // configure_pl011_dma_tx(uart_base.as_ptr() as usize);
+        let clk_freq = 100000000; // 100 MHz
+
+        let mut uart = some_serial::pl011::new(uart_base, clk_freq);
+        uart.dma_tx_enable();
+        uart.dma_rx_enable();
 
         info!(
             "Testing with slave ID: {} ({})",
@@ -123,8 +128,8 @@ mod tests {
 
         channel.buff_mut().set(0, b'A');
         channel.buff_mut().set(1, b'B');
-        channel.buff_mut().set(2, b'\r');
-        channel.buff_mut().set(3, b'\n');
+        channel.buff_mut().set(2, b'C');
+        channel.buff_mut().set(3, b'D');
 
         let irq_done = Arc::new(AtomicBool::new(false));
 

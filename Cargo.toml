@@ -4,14 +4,15 @@ name = "phytium-ddma"
 version = "0.1.0"
 
 [dependencies]
-mbarrier = "0.1"
-dma-api = { version = "0.4", features = ["alloc"] }
-log = "0.4"
-tock-registers = "0.10"
 aarch64-cpu-ext = "0.1"
+dma-api = {version = "0.4", features = ["alloc"]}
+log = "0.4"
+mbarrier = "0.1"
+tock-registers = "0.10"
 
 [dev-dependencies]
 bare-test = "0.6"
+some-serial = {git = "https://github.com/rcore-os/serial-async.git", tag = "some-serial-v0.1.1"}
 
 [build-dependencies]
 bare-test-macros = "0.2"
