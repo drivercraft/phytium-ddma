@@ -158,7 +158,7 @@ impl DDMA {
     }
 
     /// Check DMA controller and channel status for debugging
-    pub fn debug_status(&self, channel: u8) -> (u32, u32, u32, u32) {
+    pub fn debug_status(&self, _channel: u8) -> (u32, u32, u32, u32) {
         let reg = unsafe { self.reg.as_ref() };
         let dma_ctl = reg.dma_ctl.get();
         let dma_stat = reg.dma_stat.get();
