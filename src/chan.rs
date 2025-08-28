@@ -78,11 +78,11 @@ impl Channel {
         while self.reg().ctl.is_set(DMA_CHALX_CTL::CHALX_EN) {
             spin_loop();
         }
-        
+
         // Perform soft reset (following C reference)
         self.reg().ctl.modify(DMA_CHALX_CTL::CHALX_SRST::SET);
         self.reg().ctl.modify(DMA_CHALX_CTL::CHALX_SRST::CLEAR);
-        
+
         trace!("Channel {} reset done", self.n);
     }
 
@@ -129,8 +129,14 @@ impl Channel {
         trace!("  CTL: 0x{:08x}", reg.ctl.get());
         trace!("  STS: 0x{:08x}", reg.sts.get());
         trace!("  FIFO Full: {}", reg.sts.is_set(DMA_CHALX_STS::FIFO_FULL));
-        trace!("  FIFO Empty: {}", reg.sts.is_set(DMA_CHALX_STS::FIFO_EMPTY));
-        trace!("  Channel Enabled: {}", reg.ctl.is_set(DMA_CHALX_CTL::CHALX_EN));
+        trace!(
+            "  FIFO Empty: {}",
+            reg.sts.is_set(DMA_CHALX_STS::FIFO_EMPTY)
+        );
+        trace!(
+            "  Channel Enabled: {}",
+            reg.ctl.is_set(DMA_CHALX_CTL::CHALX_EN)
+        );
         trace!("  Buffer bus addr: 0x{:016x}", self.buff.bus_addr());
     }
 

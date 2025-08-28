@@ -164,13 +164,17 @@ impl DDMA {
         let dma_stat = reg.dma_stat.get();
         let bind_status = reg.dma_channel_bind.get();
         let mask_int = reg.dma_mask_int.get();
-        
+
         trace!("DMA Controller Status:");
-        trace!("  DMA_CTL: 0x{:08x} (enabled: {})", dma_ctl, (dma_ctl & 1) != 0);
+        trace!(
+            "  DMA_CTL: 0x{:08x} (enabled: {})",
+            dma_ctl,
+            (dma_ctl & 1) != 0
+        );
         trace!("  DMA_STAT: 0x{:08x}", dma_stat);
         trace!("  BIND_STATUS: 0x{:08x}", bind_status);
         trace!("  MASK_INT: 0x{:08x}", mask_int);
-        
+
         (dma_ctl, dma_stat, bind_status, mask_int)
     }
 

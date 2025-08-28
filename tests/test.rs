@@ -21,56 +21,58 @@ mod tests {
     use phytium_ddma::{ChannelConfig, DDMA, DmaDirection, peripheral_ids};
 
     // PL011 UART Register offsets
-    const UART_DR: usize = 0x00;     // Data Register
-    const UART_FR: usize = 0x18;     // Flag Register  
-    const UART_IBRD: usize = 0x24;   // Integer Baud Rate Divisor
-    const UART_FBRD: usize = 0x28;   // Fractional Baud Rate Divisor
-    const UART_LCR_H: usize = 0x2C;  // Line Control Register
-    const UART_CR: usize = 0x30;     // Control Register
-    const UART_DMACR: usize = 0x48;  // DMA Control Register
+    const UART_DR: usize = 0x00; // Data Register
+    const UART_FR: usize = 0x18; // Flag Register  
+    const UART_IBRD: usize = 0x24; // Integer Baud Rate Divisor
+    const UART_FBRD: usize = 0x28; // Fractional Baud Rate Divisor
+    const UART_LCR_H: usize = 0x2C; // Line Control Register
+    const UART_CR: usize = 0x30; // Control Register
+    const UART_DMACR: usize = 0x48; // DMA Control Register
 
     // PL011 Control Register bits
-    const UART_CR_UARTEN: u32 = 1 << 0;  // UART Enable
-    const UART_CR_TXE: u32 = 1 << 8;     // Transmit Enable
-    const UART_CR_RXE: u32 = 1 << 9;     // Receive Enable
+    const UART_CR_UARTEN: u32 = 1 << 0; // UART Enable
+    const UART_CR_TXE: u32 = 1 << 8; // Transmit Enable
+    const UART_CR_RXE: u32 = 1 << 9; // Receive Enable
 
-    // PL011 DMA Control Register bits  
+    // PL011 DMA Control Register bits
     const UART_DMACR_TXDMAE: u32 = 1 << 1; // Transmit DMA Enable
     const UART_DMACR_RXDMAE: u32 = 1 << 0; // Receive DMA Enable
 
     // PL011 Flag Register bits
-    const UART_FR_TXFF: u32 = 1 << 5;    // Transmit FIFO Full
-    const UART_FR_TXFE: u32 = 1 << 7;    // Transmit FIFO Empty
+    const UART_FR_TXFF: u32 = 1 << 5; // Transmit FIFO Full
+    const UART_FR_TXFE: u32 = 1 << 7; // Transmit FIFO Empty
 
     /// Configure PL011 UART for DMA transmission
     fn configure_pl011_dma_tx(uart_base: usize) {
         let uart_base = uart_base as *mut u32;
-        
+
         unsafe {
             // Read current control register
             let mut cr = core::ptr::read_volatile(uart_base.add(UART_CR / 4));
             info!("Current UART_CR: 0x{:08x}", cr);
-            
+
             // Ensure UART is enabled
             cr |= UART_CR_UARTEN | UART_CR_TXE;
             core::ptr::write_volatile(uart_base.add(UART_CR / 4), cr);
             info!("Updated UART_CR: 0x{:08x}", cr);
-            
+
             // Enable TX DMA
             let dmacr = UART_DMACR_TXDMAE;
             core::ptr::write_volatile(uart_base.add(UART_DMACR / 4), dmacr);
             info!("Set UART_DMACR: 0x{:08x}", dmacr);
-            
+
             // Verify DMA control register
             let dmacr_read = core::ptr::read_volatile(uart_base.add(UART_DMACR / 4));
             info!("UART_DMACR readback: 0x{:08x}", dmacr_read);
-            
+
             // Check TX FIFO status
             let fr = core::ptr::read_volatile(uart_base.add(UART_FR / 4));
-            info!("UART_FR: 0x{:08x}, TXFE: {}, TXFF: {}", 
-                  fr, 
-                  (fr & UART_FR_TXFE) != 0,
-                  (fr & UART_FR_TXFF) != 0);
+            info!(
+                "UART_FR: 0x{:08x}, TXFE: {}, TXFF: {}",
+                fr,
+                (fr & UART_FR_TXFE) != 0,
+                (fr & UART_FR_TXFF) != 0
+            );
         }
     }
 
@@ -100,7 +102,11 @@ mod tests {
         info!("Configuring PL011 UART1 for DMA transmission...");
         configure_pl011_dma_tx(uart_base.as_ptr() as usize);
 
-        info!("Testing with slave ID: {} ({})", peripheral_ids::UART1_TX, "UART1_TX");
+        info!(
+            "Testing with slave ID: {} ({})",
+            peripheral_ids::UART1_TX,
+            "UART1_TX"
+        );
 
         let mut channel = dma
             .new_channel(
@@ -185,12 +191,12 @@ mod tests {
 
         if timeout == 0 {
             info!("DMA transfer timed out");
-            
+
             // Final debug output
             info!("=== Final Status Debug ===");
             channel.debug_registers();
             dma.debug_status(channel.index());
-            
+
             // Check if the issue is with UART DMA requests
             info!("=== Problem Analysis ===");
             info!("✅ DMA Controller: Enabled and working");
@@ -204,7 +210,7 @@ mod tests {
             info!("   - DMA has read data from memory into FIFO");
             info!("   - UART1 TX is not requesting data via DMA");
             info!("   - Need to configure UART1 DMA TX enable");
-            
+
             return;
         }
 
