@@ -314,62 +314,6 @@ impl DdmaRegister {
     /// Base offset for channel registers
     pub const CHANNEL_BASE_OFFSET: usize = 0x40;
 
-    /// Get a reference to the channel registers for the specified channel
-    ///
-    /// # Arguments
-    /// * `channel` - Channel number (0-7)
-    ///
-    /// # Returns
-    /// * `Some(&DmaChannelRegisters)` - Reference to the channel registers if valid channel
-    /// * `None` - If channel number is invalid
-    ///
-    /// # Safety
-    /// This function performs pointer arithmetic and assumes the memory layout is correct.
-    /// The caller must ensure the DdmaRegister is properly initialized and mapped.
-    pub fn channel(&self, channel: usize) -> Option<&DmaChannelRegisters> {
-        if channel >= Self::MAX_CHANNELS {
-            return None;
-        }
-
-        // Calculate the address offset for the specified channel
-        let channel_offset = Self::CHANNEL_BASE_OFFSET + channel * Self::CHANNEL_REGISTER_SIZE;
-
-        // Get the base address of the register structure
-        let base_addr = self as *const Self as usize;
-        let channel_addr = base_addr + channel_offset;
-
-        // Cast to DmaChannelRegisters
-        unsafe { Some(&*(channel_addr as *const DmaChannelRegisters)) }
-    }
-
-    /// Get a mutable reference to the channel registers for the specified channel
-    ///
-    /// # Arguments
-    /// * `channel` - Channel number (0-7)
-    ///
-    /// # Returns
-    /// * `Some(&mut DmaChannelRegisters)` - Mutable reference to the channel registers if valid channel
-    /// * `None` - If channel number is invalid
-    ///
-    /// # Safety
-    /// This function performs pointer arithmetic and assumes the memory layout is correct.
-    /// The caller must ensure the DdmaRegister is properly initialized and mapped.
-    pub fn channel_mut(&mut self, channel: usize) -> Option<&mut DmaChannelRegisters> {
-        if channel >= Self::MAX_CHANNELS {
-            return None;
-        }
-
-        // Calculate the address offset for the specified channel
-        let channel_offset = Self::CHANNEL_BASE_OFFSET + channel * Self::CHANNEL_REGISTER_SIZE;
-
-        // Get the base address of the register structure
-        let base_addr = self as *mut Self as usize;
-        let channel_addr = base_addr + channel_offset;
-
-        // Cast to DmaChannelRegisters
-        unsafe { Some(&mut *(channel_addr as *mut DmaChannelRegisters)) }
-    }
-
     /// Configure channel selection for channels 0-3
     ///
     /// # Arguments

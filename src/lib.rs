@@ -12,7 +12,7 @@ mod reg;
 
 pub use chan::{Channel, ChannelConfig};
 
-use crate::reg::{DMA_CHANNEL_BIND::DMA_CHANNEL_BIND, DdmaRegister, DmaChannelRegisters};
+use crate::reg::{DdmaRegister, DmaChannelRegisters};
 
 /// DMA transfer direction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
