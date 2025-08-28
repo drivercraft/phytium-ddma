@@ -73,12 +73,16 @@ impl Channel {
     }
 
     fn reset(&mut self) {
+        // Disable channel first (following C reference)
         self.reg().ctl.modify(DMA_CHALX_CTL::CHALX_EN::CLEAR);
         while self.reg().ctl.is_set(DMA_CHALX_CTL::CHALX_EN) {
             spin_loop();
         }
+        
+        // Perform soft reset (following C reference)
         self.reg().ctl.modify(DMA_CHALX_CTL::CHALX_SRST::SET);
         self.reg().ctl.modify(DMA_CHALX_CTL::CHALX_SRST::CLEAR);
+        
         trace!("Channel {} reset done", self.n);
     }
 
@@ -110,5 +114,28 @@ impl Channel {
 
     pub fn buff_mut(&mut self) -> &mut DVec<u8> {
         &mut self.buff
+    }
+
+    /// Debug channel registers
+    pub fn debug_registers(&self) {
+        let reg = self.reg();
+        trace!("Channel {} Register Status:", self.n);
+        trace!("  DDR_UPADDR: 0x{:08x}", reg.ddr_upaddr.get());
+        trace!("  DDR_LWADDR: 0x{:08x}", reg.ddr_lwaddr.get());
+        trace!("  DEV_ADDR: 0x{:08x}", reg.dev_addr.get());
+        trace!("  TS: 0x{:08x}", reg.ts.get());
+        trace!("  CRT_UPADDR: 0x{:08x}", reg.crt_upaddr.get());
+        trace!("  CRT_LWADDR: 0x{:08x}", reg.crt_lwaddr.get());
+        trace!("  CTL: 0x{:08x}", reg.ctl.get());
+        trace!("  STS: 0x{:08x}", reg.sts.get());
+        trace!("  FIFO Full: {}", reg.sts.is_set(DMA_CHALX_STS::FIFO_FULL));
+        trace!("  FIFO Empty: {}", reg.sts.is_set(DMA_CHALX_STS::FIFO_EMPTY));
+        trace!("  Channel Enabled: {}", reg.ctl.is_set(DMA_CHALX_CTL::CHALX_EN));
+        trace!("  Buffer bus addr: 0x{:016x}", self.buff.bus_addr());
+    }
+
+    /// Check if channel is actually running
+    pub fn is_running(&self) -> bool {
+        self.reg().ctl.is_set(DMA_CHALX_CTL::CHALX_EN)
     }
 }

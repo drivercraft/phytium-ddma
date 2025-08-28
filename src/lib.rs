@@ -157,6 +157,23 @@ impl DDMA {
         reg.is_channel_complete(channel as usize)
     }
 
+    /// Check DMA controller and channel status for debugging
+    pub fn debug_status(&self, channel: u8) -> (u32, u32, u32, u32) {
+        let reg = unsafe { self.reg.as_ref() };
+        let dma_ctl = reg.dma_ctl.get();
+        let dma_stat = reg.dma_stat.get();
+        let bind_status = reg.dma_channel_bind.get();
+        let mask_int = reg.dma_mask_int.get();
+        
+        trace!("DMA Controller Status:");
+        trace!("  DMA_CTL: 0x{:08x} (enabled: {})", dma_ctl, (dma_ctl & 1) != 0);
+        trace!("  DMA_STAT: 0x{:08x}", dma_stat);
+        trace!("  BIND_STATUS: 0x{:08x}", bind_status);
+        trace!("  MASK_INT: 0x{:08x}", mask_int);
+        
+        (dma_ctl, dma_stat, bind_status, mask_int)
+    }
+
     /// Clear transfer complete status for a channel
     pub fn clear_transfer_complete(&mut self, channel: u8) {
         if channel <= 7 {
