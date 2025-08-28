@@ -35,6 +35,22 @@ impl Channel {
             buff: DVec::zeros(config.blk_size, 128, dma_api::Direction::Bidirectional)?,
         };
         let ddr = s.buff.bus_addr();
+
+        // Check DDR address alignment (following C reference)
+        if !ddr.is_multiple_of(4) {
+            trace!("DDR addr 0x{:x} must be aligned with 4 bytes.", ddr);
+            return None;
+        }
+
+        // Check transfer size alignment (following C reference)
+        if config.blk_size < 4 || !config.blk_size.is_multiple_of(4) {
+            trace!(
+                "Invalid transfer size {} bytes, it should be an integer multiple of 4 bytes.",
+                config.blk_size
+            );
+            return None;
+        }
+
         if s.reg().ctl.is_set(DMA_CHALX_CTL::CHALX_EN) {
             s.reset();
         }
@@ -67,8 +83,17 @@ impl Channel {
     }
 
     pub fn active(&mut self) {
+        // Clear any pending interrupts first (following C reference)
+        // Note: This would need to be done at the controller level
+        // but we can clear channel-specific status here
         self.reg().ctl.modify(DMA_CHALX_CTL::CHALX_EN::SET);
         trace!("Channel {} activated", self.n);
+    }
+
+    pub fn clear_and_active(&mut self, dma: &mut crate::DDMA) {
+        // Clear pending interrupts at controller level (following C reference)
+        dma.clear_transfer_complete(self.n);
+        self.active();
     }
 
     pub fn deactive(&mut self) {

@@ -68,13 +68,30 @@ impl DDMA {
 
     /// Initialize the DMA controller
     pub fn reset(&mut self) {
-        let reg = unsafe { self.reg.as_ref() };
+        let reg = unsafe { self.reg.as_mut() };
 
+        // Disable DDMA controller first
         reg.dma_ctl.write(reg::DMA_CTL::DMA_ENABLE::CLEAR);
+
+        // Disable global interrupt
+        reg.dma_mask_int.write(reg::DMA_MASK_INT::GLOBAL_EN::CLEAR);
+
+        // Reset all channels first
+        for chan_id in 0..8 {
+            if reg.is_channel_bind(chan_id) {
+                reg.set_channel_bind(chan_id, false);
+            }
+            // Disable channel interrupt
+            reg.set_channel_interrupt_mask(chan_id, true); // true means mask (disable)
+            // Clear any pending interrupts
+            reg.clear_channel_complete(chan_id);
+            // Reset channel configuration
+            reg.set_channel_config(chan_id, 0, false);
+        }
+
+        // Perform software reset
         reg.dma_ctl.write(reg::DMA_CTL::DMA_SRST::SET);
         reg.dma_ctl.write(reg::DMA_CTL::DMA_SRST::CLEAR);
-
-        let reg = unsafe { self.reg.as_ref() };
 
         // Enable global interrupt
         reg.dma_mask_int.write(reg::DMA_MASK_INT::GLOBAL_EN::SET);
@@ -83,6 +100,11 @@ impl DDMA {
     pub fn enable(&mut self) {
         let reg = unsafe { self.reg.as_mut() };
         reg.dma_ctl.modify(reg::DMA_CTL::DMA_ENABLE::SET);
+    }
+
+    pub fn disable(&mut self) {
+        let reg = unsafe { self.reg.as_mut() };
+        reg.dma_ctl.write(reg::DMA_CTL::DMA_ENABLE::CLEAR);
     }
 
     pub fn new_channel(&mut self, n: u8, config: ChannelConfig) -> Option<Channel> {
@@ -98,12 +120,8 @@ impl DDMA {
             return None; // Channel already in use
         }
 
-        // Configure channel selection and enable using the new helper methods
-
-        self.reg()
-            .set_channel_config(channel, config.slave_id as u32, true);
-
-        self.reg().set_channel_interrupt_mask(channel, true);
+        // According to C reference: First stop DMA controller
+        self.disable();
 
         // Calculate the address offset for the specified channel
         let channel_offset =
@@ -113,10 +131,20 @@ impl DDMA {
         let base_addr = self.reg.as_ptr() as usize;
         let channel_addr = base_addr + channel_offset;
 
+        let reg = unsafe { NonNull::new_unchecked(channel_addr as *mut DmaChannelRegisters) };
+
+        // Create channel first to get the buffer
+        let channel_result = Channel::new(n, reg, config.clone())?;
+
+        // Configure channel selection and bind (following C reference sequence)
+        self.reg()
+            .set_channel_config(channel, config.slave_id as u32, true);
         self.reg().set_channel_bind(channel, true);
 
-        let reg = unsafe { NonNull::new_unchecked(channel_addr as *mut DmaChannelRegisters) };
-        Channel::new(n, reg, config)
+        // Unmask channel interrupt (false means unmask/enable)
+        self.reg().set_channel_interrupt_mask(channel, false);
+
+        Some(channel_result)
     }
 
     /// Check if transfer is complete for a channel

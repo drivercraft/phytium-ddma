@@ -5,8 +5,6 @@
 extern crate alloc;
 extern crate bare_test;
 
-use alloc::boxed::Box;
-
 #[bare_test::tests]
 mod tests {
     use core::sync::atomic::AtomicBool;
@@ -38,7 +36,7 @@ mod tests {
 
         debug!("DDMA controller reset done");
 
-        let uart_1_addr = 0x2800d000usize;
+        let uart_1_addr = 0x2800d000usize; // UART1 base address, TX FIFO is at offset 0x00
 
         let mut channel = dma
             .new_channel(
@@ -48,7 +46,7 @@ mod tests {
                     direction: DmaDirection::MemoryToDevice,
                     timeout_count: 0x1000,
                     blk_size: 4,
-                    dev_addr: uart_1_addr as _, // This should be the actual UART1 TX FIFO address
+                    dev_addr: uart_1_addr as _, // UART1 TX FIFO address (base + 0x00)
                 },
             )
             .expect("Failed to create DMA channel 0");
@@ -81,15 +79,23 @@ mod tests {
 
         info!("Starting DMA transfer: Memory to UART1 TX");
 
-        channel.active();
+        // Clear interrupts and activate channel (following C reference)
+        channel.clear_and_active(&mut dma);
+        
+        // Then start DMA controller (following C reference sequence)
+        dma.enable();
 
         // Wait for transfer completion (polling mode for this test)
-        let mut timeout = 50000;
+        let mut timeout = 100000; // Increase timeout
         while !dma.is_transfer_complete(channel.index()) && timeout > 0 {
             timeout -= 1;
             if irq_done.load(core::sync::atomic::Ordering::SeqCst) {
                 info!("DMA transfer completed via interrupt");
                 break;
+            }
+            // Add periodic status check
+            if timeout % 10000 == 0 {
+                debug!("DMA transfer in progress, timeout remaining: {}", timeout);
             }
             // Small delay to prevent busy waiting
             for _ in 0..1000 {

@@ -314,58 +314,58 @@ impl DdmaRegister {
     /// Base offset for channel registers
     pub const CHANNEL_BASE_OFFSET: usize = 0x40;
 
-    /// Configure channel selection for channels 0-3
+    /// Configure channel selection for channels 0-7
     ///
     /// # Arguments
-    /// * `channel` - Channel number (0-3)
+    /// * `channel` - Channel number (0-7)
     /// * `sel` - Request signal source selection (0-127)
     /// * `enable` - Whether to enable the selection
     pub fn set_channel_config(&self, channel: usize, sel: u32, enable: bool) {
         match channel {
             0 => {
-                self.dma_chal_config.write(
+                self.dma_chal_config.modify(
                     DMA_CHAL_CONFIG::CHAL0_SEL.val(sel)
                         + DMA_CHAL_CONFIG::CHAL0_SEL_EN.val(enable as u32),
                 );
             }
             1 => {
-                self.dma_chal_config.write(
+                self.dma_chal_config.modify(
                     DMA_CHAL_CONFIG::CHAL1_SEL.val(sel)
                         + DMA_CHAL_CONFIG::CHAL1_SEL_EN.val(enable as u32),
                 );
             }
             2 => {
-                self.dma_chal_config.write(
+                self.dma_chal_config.modify(
                     DMA_CHAL_CONFIG::CHAL2_SEL.val(sel)
                         + DMA_CHAL_CONFIG::CHAL2_SEL_EN.val(enable as u32),
                 );
             }
             3 => {
-                self.dma_chal_config.write(
+                self.dma_chal_config.modify(
                     DMA_CHAL_CONFIG::CHAL3_SEL.val(sel)
                         + DMA_CHAL_CONFIG::CHAL3_SEL_EN.val(enable as u32),
                 );
             }
             4 => {
-                self.dma_chal_config1.write(
+                self.dma_chal_config1.modify(
                     DMA_CHAL_CONFIG1::CHAL4_SEL.val(sel)
                         + DMA_CHAL_CONFIG1::CHAL4_SEL_EN.val(enable as u32),
                 );
             }
             5 => {
-                self.dma_chal_config1.write(
+                self.dma_chal_config1.modify(
                     DMA_CHAL_CONFIG1::CHAL5_SEL.val(sel)
                         + DMA_CHAL_CONFIG1::CHAL5_SEL_EN.val(enable as u32),
                 );
             }
             6 => {
-                self.dma_chal_config1.write(
+                self.dma_chal_config1.modify(
                     DMA_CHAL_CONFIG1::CHAL6_SEL.val(sel)
                         + DMA_CHAL_CONFIG1::CHAL6_SEL_EN.val(enable as u32),
                 );
             }
             7 => {
-                self.dma_chal_config1.write(
+                self.dma_chal_config1.modify(
                     DMA_CHAL_CONFIG1::CHAL7_SEL.val(sel)
                         + DMA_CHAL_CONFIG1::CHAL7_SEL_EN.val(enable as u32),
                 );
@@ -383,35 +383,35 @@ impl DdmaRegister {
         match channel {
             0 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL0_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL0_MASK.val(mask as u32));
             }
             1 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL1_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL1_MASK.val(mask as u32));
             }
             2 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL2_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL2_MASK.val(mask as u32));
             }
             3 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL3_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL3_MASK.val(mask as u32));
             }
             4 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL4_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL4_MASK.val(mask as u32));
             }
             5 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL5_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL5_MASK.val(mask as u32));
             }
             6 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL6_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL6_MASK.val(mask as u32));
             }
             7 => {
                 self.dma_mask_int
-                    .write(DMA_MASK_INT::CHAL7_MASK.val(mask as u32));
+                    .modify(DMA_MASK_INT::CHAL7_MASK.val(mask as u32));
             }
             _ => {}
         }
