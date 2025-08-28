@@ -1,4 +1,5 @@
 use tock_registers::{
+    interfaces::{ReadWriteable, Readable, Writeable},
     register_bitfields, register_structs,
     registers::{ReadOnly, ReadWrite},
 };
@@ -193,7 +194,10 @@ register_bitfields! {
         /// 0: Receive peripheral dma_tx_req
         /// Note: During normal operation, software is not allowed to operate this bit,
         /// only allowed when channel is disabled
-        CHALX_MODE OFFSET(2) NUMBITS(1) [],
+        CHALX_MODE OFFSET(2) NUMBITS(1) [
+            Tx = 0,
+            Rx = 1
+        ],
 
         /// Reserved
         RESERVED OFFSET(3) NUMBITS(29) []
@@ -225,139 +229,307 @@ register_bitfields! {
 }
 
 register_structs! {
+    /// Single DMA Channel Register Block Structure
+    /// Each channel occupies 0x40 bytes (64 bytes) of address space
+    pub DmaChannelRegisters {
+        /// Channel DDR Upper Address Register
+        (0x00 => pub ddr_upaddr: ReadWrite<u32>),
+        /// Channel DDR Lower Address Register
+        (0x04 => pub ddr_lwaddr: ReadWrite<u32>),
+        /// Channel Device Address Register
+        (0x08 => pub dev_addr: ReadWrite<u32>),
+        /// Channel Transfer Size Register
+        (0x0C => pub ts: ReadWrite<u32>),
+        /// Channel Current Upper Address Register
+        (0x10 => pub crt_upaddr: ReadWrite<u32>),
+        /// Channel Current Lower Address Register
+        (0x14 => pub crt_lwaddr: ReadWrite<u32>),
+        /// Channel Control Register
+        (0x18 => pub ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
+        /// Channel Status Register
+        (0x1C => pub sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
+        /// Channel Timeout Count Register
+        (0x20 => pub timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
+        /// Reserved space to next channel
+        (0x24 => _reserved: [u8; 0x1C]),
+        (0x40 => @END),
+    }
+}
+
+register_structs! {
     /// DDMA Register Structure
     /// Base addresses: DMA0: 0x0002_8003_000, DMA1: 0x0002_8004_000
     pub DdmaRegister {
         /// Global Control Register
-        (0x00 => dma_ctl: ReadWrite<u32, DMA_CTL::Register>),
+        (0x00 => pub dma_ctl: ReadWrite<u32, DMA_CTL::Register>),
 
         /// Channel Configuration Register (channels 0-3)
-        (0x04 => dma_chal_config: ReadWrite<u32, DMA_CHAL_CONFIG::Register>),
+        (0x04 => pub dma_chal_config: ReadWrite<u32, DMA_CHAL_CONFIG::Register>),
 
         /// Interrupt Status Register
-        (0x08 => dma_stat: ReadWrite<u32, DMA_STAT::Register>),
+        (0x08 => pub dma_stat: ReadWrite<u32, DMA_STAT::Register>),
 
         /// Interrupt Mask Register
-        (0x0C => dma_mask_int: ReadWrite<u32, DMA_MASK_INT::Register>),
+        (0x0C => pub dma_mask_int: ReadWrite<u32, DMA_MASK_INT::Register>),
 
         /// Upstream AXI Write Channel Configuration Register
-        (0x10 => dma_upaxi_awconfig: ReadWrite<u32>),
+        (0x10 => pub dma_upaxi_awconfig: ReadWrite<u32>),
 
         /// Upstream AXI Read Channel Configuration Register
-        (0x14 => dma_upaxi_arconfig: ReadWrite<u32>),
+        (0x14 => pub dma_upaxi_arconfig: ReadWrite<u32>),
 
         /// Downstream AXI Write Channel Configuration Register
-        (0x18 => dma_dwnaxi_awconfig: ReadWrite<u32>),
+        (0x18 => pub dma_dwnaxi_awconfig: ReadWrite<u32>),
 
         /// Downstream AXI Read Channel Configuration Register
-        (0x1C => dma_dwnaxi_arconfig: ReadWrite<u32>),
+        (0x1C => pub dma_dwnaxi_arconfig: ReadWrite<u32>),
 
         /// Channel Bind Register
-        (0x20 => dma_channel_bind: ReadWrite<u32, DMA_CHANNEL_BIND::Register>),
+        (0x20 => pub dma_channel_bind: ReadWrite<u32, DMA_CHANNEL_BIND::Register>),
 
         /// Global Capability Register (Read Only)
-        (0x24 => dma_gcap: ReadOnly<u32, DMA_GCAP::Register>),
+        (0x24 => pub dma_gcap: ReadOnly<u32, DMA_GCAP::Register>),
 
         /// Channel Configuration Register 1 (channels 4-7)
-        (0x28 => dma_chal_config1: ReadWrite<u32, DMA_CHAL_CONFIG1::Register>),
+        (0x28 => pub dma_chal_config1: ReadWrite<u32, DMA_CHAL_CONFIG1::Register>),
 
-        /// Reserved space
+        /// Reserved space before channel registers
         (0x2C => _reserved0: [u8; 0x14]),
 
-        /// Channel 0 Registers
-        (0x40 => dma_chal0_ddr_upaddr: ReadWrite<u32>),
-        (0x44 => dma_chal0_ddr_lwaddr: ReadWrite<u32>),
-        (0x48 => dma_chal0_dev_addr: ReadWrite<u32>),
-        (0x4C => dma_chal0_ts: ReadWrite<u32>),
-        (0x50 => dma_chal0_crt_upaddr: ReadWrite<u32>),
-        (0x54 => dma_chal0_crt_lwaddr: ReadWrite<u32>),
-        (0x58 => dma_chal0_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x5C => dma_chal0_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0x60 => dma_chal0_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0x64 => _reserved1: [u8; 0x1C]),
+        /// Channel registers block starting at 0x40
+        /// Each channel uses 0x40 bytes, channels 0-7 supported
+        (0x40 => _channel_registers: [u8; 0x1E4]),
 
-        /// Channel 1 Registers
-        (0x80 => dma_chal1_ddr_upaddr: ReadWrite<u32>),
-        (0x84 => dma_chal1_ddr_lwaddr: ReadWrite<u32>),
-        (0x88 => dma_chal1_dev_addr: ReadWrite<u32>),
-        (0x8C => dma_chal1_ts: ReadWrite<u32>),
-        (0x90 => dma_chal1_crt_upaddr: ReadWrite<u32>),
-        (0x94 => dma_chal1_crt_lwaddr: ReadWrite<u32>),
-        (0x98 => dma_chal1_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x9C => dma_chal1_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0xA0 => dma_chal1_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0xA4 => _reserved2: [u8; 0x1C]),
-
-        /// Channel 2 Registers
-        (0xC0 => dma_chal2_ddr_upaddr: ReadWrite<u32>),
-        (0xC4 => dma_chal2_ddr_lwaddr: ReadWrite<u32>),
-        (0xC8 => dma_chal2_dev_addr: ReadWrite<u32>),
-        (0xCC => dma_chal2_ts: ReadWrite<u32>),
-        (0xD0 => dma_chal2_crt_upaddr: ReadWrite<u32>),
-        (0xD4 => dma_chal2_crt_lwaddr: ReadWrite<u32>),
-        (0xD8 => dma_chal2_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0xDC => dma_chal2_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0xE0 => dma_chal2_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0xE4 => _reserved3: [u8; 0x1C]),
-
-        /// Channel 3 Registers
-        (0x100 => dma_chal3_ddr_upaddr: ReadWrite<u32>),
-        (0x104 => dma_chal3_ddr_lwaddr: ReadWrite<u32>),
-        (0x108 => dma_chal3_dev_addr: ReadWrite<u32>),
-        (0x10C => dma_chal3_ts: ReadWrite<u32>),
-        (0x110 => dma_chal3_crt_upaddr: ReadWrite<u32>),
-        (0x114 => dma_chal3_crt_lwaddr: ReadWrite<u32>),
-        (0x118 => dma_chal3_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x11C => dma_chal3_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0x120 => dma_chal3_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0x124 => _reserved4: [u8; 0x1C]),
-
-        /// Channel 4 Registers
-        (0x140 => dma_chal4_ddr_upaddr: ReadWrite<u32>),
-        (0x144 => dma_chal4_ddr_lwaddr: ReadWrite<u32>),
-        (0x148 => dma_chal4_dev_addr: ReadWrite<u32>),
-        (0x14C => dma_chal4_ts: ReadWrite<u32>),
-        (0x150 => dma_chal4_crt_upaddr: ReadWrite<u32>),
-        (0x154 => dma_chal4_crt_lwaddr: ReadWrite<u32>),
-        (0x158 => dma_chal4_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x15C => dma_chal4_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0x160 => dma_chal4_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0x164 => _reserved5: [u8; 0x1C]),
-
-        /// Channel 5 Registers
-        (0x180 => dma_chal5_ddr_upaddr: ReadWrite<u32>),
-        (0x184 => dma_chal5_ddr_lwaddr: ReadWrite<u32>),
-        (0x188 => dma_chal5_dev_addr: ReadWrite<u32>),
-        (0x18C => dma_chal5_ts: ReadWrite<u32>),
-        (0x190 => dma_chal5_crt_upaddr: ReadWrite<u32>),
-        (0x194 => dma_chal5_crt_lwaddr: ReadWrite<u32>),
-        (0x198 => dma_chal5_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x19C => dma_chal5_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0x1A0 => dma_chal5_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0x1A4 => _reserved6: [u8; 0x1C]),
-
-        /// Channel 6 Registers
-        (0x1C0 => dma_chal6_ddr_upaddr: ReadWrite<u32>),
-        (0x1C4 => dma_chal6_ddr_lwaddr: ReadWrite<u32>),
-        (0x1C8 => dma_chal6_dev_addr: ReadWrite<u32>),
-        (0x1CC => dma_chal6_ts: ReadWrite<u32>),
-        (0x1D0 => dma_chal6_crt_upaddr: ReadWrite<u32>),
-        (0x1D4 => dma_chal6_crt_lwaddr: ReadWrite<u32>),
-        (0x1D8 => dma_chal6_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x1DC => dma_chal6_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0x1E0 => dma_chal6_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
-        (0x1E4 => _reserved7: [u8; 0x1C]),
-
-        /// Channel 7 Registers
-        (0x200 => dma_chal7_ddr_upaddr: ReadWrite<u32>),
-        (0x204 => dma_chal7_ddr_lwaddr: ReadWrite<u32>),
-        (0x208 => dma_chal7_dev_addr: ReadWrite<u32>),
-        (0x20C => dma_chal7_ts: ReadWrite<u32>),
-        (0x210 => dma_chal7_crt_upaddr: ReadWrite<u32>),
-        (0x214 => dma_chal7_crt_lwaddr: ReadWrite<u32>),
-        (0x218 => dma_chal7_ctl: ReadWrite<u32, DMA_CHALX_CTL::Register>),
-        (0x21C => dma_chal7_sts: ReadWrite<u32, DMA_CHALX_STS::Register>),
-        (0x220 => dma_chal7_timeout_cnt: ReadWrite<u32, DMA_CHALX_TIMEOUT_CNT::Register>),
         (0x224 => @END),
+    }
+}
+
+impl DdmaRegister {
+    /// Maximum number of supported DMA channels
+    pub const MAX_CHANNELS: usize = 8;
+
+    /// Size of each channel register block in bytes
+    pub const CHANNEL_REGISTER_SIZE: usize = 0x40;
+
+    /// Base offset for channel registers
+    pub const CHANNEL_BASE_OFFSET: usize = 0x40;
+
+    /// Get a reference to the channel registers for the specified channel
+    ///
+    /// # Arguments
+    /// * `channel` - Channel number (0-7)
+    ///
+    /// # Returns
+    /// * `Some(&DmaChannelRegisters)` - Reference to the channel registers if valid channel
+    /// * `None` - If channel number is invalid
+    ///
+    /// # Safety
+    /// This function performs pointer arithmetic and assumes the memory layout is correct.
+    /// The caller must ensure the DdmaRegister is properly initialized and mapped.
+    pub fn channel(&self, channel: usize) -> Option<&DmaChannelRegisters> {
+        if channel >= Self::MAX_CHANNELS {
+            return None;
+        }
+
+        // Calculate the address offset for the specified channel
+        let channel_offset = Self::CHANNEL_BASE_OFFSET + channel * Self::CHANNEL_REGISTER_SIZE;
+
+        // Get the base address of the register structure
+        let base_addr = self as *const Self as usize;
+        let channel_addr = base_addr + channel_offset;
+
+        // Cast to DmaChannelRegisters
+        unsafe { Some(&*(channel_addr as *const DmaChannelRegisters)) }
+    }
+
+    /// Get a mutable reference to the channel registers for the specified channel
+    ///
+    /// # Arguments
+    /// * `channel` - Channel number (0-7)
+    ///
+    /// # Returns
+    /// * `Some(&mut DmaChannelRegisters)` - Mutable reference to the channel registers if valid channel
+    /// * `None` - If channel number is invalid
+    ///
+    /// # Safety
+    /// This function performs pointer arithmetic and assumes the memory layout is correct.
+    /// The caller must ensure the DdmaRegister is properly initialized and mapped.
+    pub fn channel_mut(&mut self, channel: usize) -> Option<&mut DmaChannelRegisters> {
+        if channel >= Self::MAX_CHANNELS {
+            return None;
+        }
+
+        // Calculate the address offset for the specified channel
+        let channel_offset = Self::CHANNEL_BASE_OFFSET + channel * Self::CHANNEL_REGISTER_SIZE;
+
+        // Get the base address of the register structure
+        let base_addr = self as *mut Self as usize;
+        let channel_addr = base_addr + channel_offset;
+
+        // Cast to DmaChannelRegisters
+        unsafe { Some(&mut *(channel_addr as *mut DmaChannelRegisters)) }
+    }
+
+    /// Configure channel selection for channels 0-3
+    ///
+    /// # Arguments
+    /// * `channel` - Channel number (0-3)
+    /// * `sel` - Request signal source selection (0-127)
+    /// * `enable` - Whether to enable the selection
+    pub fn set_channel_config(&self, channel: usize, sel: u32, enable: bool) {
+        match channel {
+            0 => {
+                self.dma_chal_config.write(
+                    DMA_CHAL_CONFIG::CHAL0_SEL.val(sel)
+                        + DMA_CHAL_CONFIG::CHAL0_SEL_EN.val(enable as u32),
+                );
+            }
+            1 => {
+                self.dma_chal_config.write(
+                    DMA_CHAL_CONFIG::CHAL1_SEL.val(sel)
+                        + DMA_CHAL_CONFIG::CHAL1_SEL_EN.val(enable as u32),
+                );
+            }
+            2 => {
+                self.dma_chal_config.write(
+                    DMA_CHAL_CONFIG::CHAL2_SEL.val(sel)
+                        + DMA_CHAL_CONFIG::CHAL2_SEL_EN.val(enable as u32),
+                );
+            }
+            3 => {
+                self.dma_chal_config.write(
+                    DMA_CHAL_CONFIG::CHAL3_SEL.val(sel)
+                        + DMA_CHAL_CONFIG::CHAL3_SEL_EN.val(enable as u32),
+                );
+            }
+            4 => {
+                self.dma_chal_config1.write(
+                    DMA_CHAL_CONFIG1::CHAL4_SEL.val(sel)
+                        + DMA_CHAL_CONFIG1::CHAL4_SEL_EN.val(enable as u32),
+                );
+            }
+            5 => {
+                self.dma_chal_config1.write(
+                    DMA_CHAL_CONFIG1::CHAL5_SEL.val(sel)
+                        + DMA_CHAL_CONFIG1::CHAL5_SEL_EN.val(enable as u32),
+                );
+            }
+            6 => {
+                self.dma_chal_config1.write(
+                    DMA_CHAL_CONFIG1::CHAL6_SEL.val(sel)
+                        + DMA_CHAL_CONFIG1::CHAL6_SEL_EN.val(enable as u32),
+                );
+            }
+            7 => {
+                self.dma_chal_config1.write(
+                    DMA_CHAL_CONFIG1::CHAL7_SEL.val(sel)
+                        + DMA_CHAL_CONFIG1::CHAL7_SEL_EN.val(enable as u32),
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    /// Set interrupt mask for a specific channel
+    ///
+    /// # Arguments
+    /// * `channel` - Channel number (0-7)
+    /// * `mask` - true to mask (disable) interrupt, false to unmask (enable)
+    pub fn set_channel_interrupt_mask(&self, channel: usize, mask: bool) {
+        match channel {
+            0 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL0_MASK.val(mask as u32));
+            }
+            1 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL1_MASK.val(mask as u32));
+            }
+            2 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL2_MASK.val(mask as u32));
+            }
+            3 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL3_MASK.val(mask as u32));
+            }
+            4 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL4_MASK.val(mask as u32));
+            }
+            5 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL5_MASK.val(mask as u32));
+            }
+            6 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL6_MASK.val(mask as u32));
+            }
+            7 => {
+                self.dma_mask_int
+                    .write(DMA_MASK_INT::CHAL7_MASK.val(mask as u32));
+            }
+            _ => {}
+        }
+    }
+
+    /// Check if a channel transfer is complete
+    ///
+    /// # Arguments
+    /// * `channel` - Channel number (0-7)
+    ///
+    /// # Returns
+    /// * `true` - if transfer is complete
+    /// * `false` - if transfer is not complete or invalid channel
+    pub fn is_channel_complete(&self, channel: usize) -> bool {
+        match channel {
+            0 => self.dma_stat.is_set(DMA_STAT::CHAL0_SEL),
+            1 => self.dma_stat.is_set(DMA_STAT::CHAL1_SEL),
+            2 => self.dma_stat.is_set(DMA_STAT::CHAL2_SEL),
+            3 => self.dma_stat.is_set(DMA_STAT::CHAL3_SEL),
+            4 => self.dma_stat.is_set(DMA_STAT::CHAL4_SEL),
+            5 => self.dma_stat.is_set(DMA_STAT::CHAL5_SEL),
+            6 => self.dma_stat.is_set(DMA_STAT::CHAL6_SEL),
+            7 => self.dma_stat.is_set(DMA_STAT::CHAL7_SEL),
+            _ => false,
+        }
+    }
+
+    /// Clear channel transfer complete status
+    ///
+    /// # Arguments
+    /// * `channel` - Channel number (0-7)
+    pub fn clear_channel_complete(&mut self, channel: usize) {
+        match channel {
+            0 => self.dma_stat.modify(DMA_STAT::CHAL0_SEL::SET),
+            1 => self.dma_stat.modify(DMA_STAT::CHAL1_SEL::SET),
+            2 => self.dma_stat.modify(DMA_STAT::CHAL2_SEL::SET),
+            3 => self.dma_stat.modify(DMA_STAT::CHAL3_SEL::SET),
+            4 => self.dma_stat.modify(DMA_STAT::CHAL4_SEL::SET),
+            5 => self.dma_stat.modify(DMA_STAT::CHAL5_SEL::SET),
+            6 => self.dma_stat.modify(DMA_STAT::CHAL6_SEL::SET),
+            7 => self.dma_stat.modify(DMA_STAT::CHAL7_SEL::SET),
+            _ => {}
+        }
+    }
+
+    pub fn is_channel_bind(&self, channel: usize) -> bool {
+        if channel >= Self::MAX_CHANNELS {
+            return false;
+        }
+        (self.dma_channel_bind.get() & (1 << channel)) != 0
+    }
+
+    pub fn set_channel_bind(&self, channel: usize, bind: bool) {
+        if channel >= Self::MAX_CHANNELS {
+            return;
+        }
+        if bind {
+            self.dma_channel_bind
+                .set(self.dma_channel_bind.get() | (1 << channel));
+        } else {
+            self.dma_channel_bind
+                .set(self.dma_channel_bind.get() & !(1 << channel));
+        }
     }
 }

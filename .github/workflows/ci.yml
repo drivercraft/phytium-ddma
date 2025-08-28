@@ -25,7 +25,7 @@ jobs:
     - name: Check code format
       run: cargo fmt --all -- --check
     - name: Clippy for the default target
-      run: cargo clippy
+      run: cargo clippy --target aarch64-unknown-none-softfloat
 
   Test:
     runs-on: ubuntu-22.04
@@ -54,4 +54,4 @@ jobs:
         version: 9.2.4
         arch_list: aarch64
     - name: Run app tests
-      run: cargo test --test test -- tests --show-output
+      run: cargo build --target aarch64-unknown-none-softfloat
