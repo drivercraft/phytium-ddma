@@ -17,64 +17,8 @@ mod tests {
         irq::{IrqHandleResult, IrqInfo, IrqParam},
         mem::iomap,
     };
-    use log::{debug, info};
+    use log::{debug, info, trace};
     use phytium_ddma::{ChannelConfig, DDMA, DmaDirection, peripheral_ids};
-
-    // PL011 UART Register offsets
-    const UART_DR: usize = 0x00; // Data Register
-    const UART_FR: usize = 0x18; // Flag Register  
-    const UART_IBRD: usize = 0x24; // Integer Baud Rate Divisor
-    const UART_FBRD: usize = 0x28; // Fractional Baud Rate Divisor
-    const UART_LCR_H: usize = 0x2C; // Line Control Register
-    const UART_CR: usize = 0x30; // Control Register
-    const UART_DMACR: usize = 0x48; // DMA Control Register
-
-    // PL011 Control Register bits
-    const UART_CR_UARTEN: u32 = 1 << 0; // UART Enable
-    const UART_CR_TXE: u32 = 1 << 8; // Transmit Enable
-    const UART_CR_RXE: u32 = 1 << 9; // Receive Enable
-
-    // PL011 DMA Control Register bits
-    const UART_DMACR_TXDMAE: u32 = 1 << 1; // Transmit DMA Enable
-    const UART_DMACR_RXDMAE: u32 = 1 << 0; // Receive DMA Enable
-
-    // PL011 Flag Register bits
-    const UART_FR_TXFF: u32 = 1 << 5; // Transmit FIFO Full
-    const UART_FR_TXFE: u32 = 1 << 7; // Transmit FIFO Empty
-
-    /// Configure PL011 UART for DMA transmission
-    fn configure_pl011_dma_tx(uart_base: usize) {
-        let uart_base = uart_base as *mut u32;
-
-        unsafe {
-            // Read current control register
-            let mut cr = core::ptr::read_volatile(uart_base.add(UART_CR / 4));
-            info!("Current UART_CR: 0x{:08x}", cr);
-
-            // Ensure UART is enabled
-            cr |= UART_CR_UARTEN | UART_CR_TXE;
-            core::ptr::write_volatile(uart_base.add(UART_CR / 4), cr);
-            info!("Updated UART_CR: 0x{:08x}", cr);
-
-            // Enable TX DMA
-            let dmacr = UART_DMACR_TXDMAE;
-            core::ptr::write_volatile(uart_base.add(UART_DMACR / 4), dmacr);
-            info!("Set UART_DMACR: 0x{:08x}", dmacr);
-
-            // Verify DMA control register
-            let dmacr_read = core::ptr::read_volatile(uart_base.add(UART_DMACR / 4));
-            info!("UART_DMACR readback: 0x{:08x}", dmacr_read);
-
-            // Check TX FIFO status
-            let fr = core::ptr::read_volatile(uart_base.add(UART_FR / 4));
-            info!(
-                "UART_FR: 0x{:08x}, TXFE: {}, TXFF: {}",
-                fr,
-                (fr & UART_FR_TXFE) != 0,
-                (fr & UART_FR_TXFF) != 0
-            );
-        }
-    }
 
     #[test]
     fn test_dma_memory_to_uart1_tx() {
@@ -104,8 +48,8 @@ mod tests {
         let clk_freq = 100000000; // 100 MHz
 
         let mut uart = some_serial::pl011::new(uart_base, clk_freq);
-        uart.dma_tx_enable();
-        uart.dma_rx_enable();
+        uart.dma_tx_enable().unwrap();
+        uart.dma_rx_enable().unwrap();
 
         info!(
             "Testing with slave ID: {} ({})",
@@ -122,14 +66,12 @@ mod tests {
                     timeout_count: 0x1000,
                     blk_size: 4,
                     dev_addr: uart_1_addr as _, // UART1 TX FIFO address (base + 0x00)
+                    irq: true,
                 },
             )
             .expect("Failed to create DMA channel 0");
 
         channel.buff_mut().set(0, b'A');
-        channel.buff_mut().set(1, b'B');
-        channel.buff_mut().set(2, b'C');
-        channel.buff_mut().set(3, b'D');
 
         let irq_done = Arc::new(AtomicBool::new(false));
 
@@ -164,7 +106,6 @@ mod tests {
         // Debug: Check state after activation
         dma.debug_status(channel.index());
         channel.debug_registers();
-
         // Then start DMA controller (following C reference sequence)
         dma.enable();
 
@@ -173,12 +114,9 @@ mod tests {
 
         // Wait for transfer completion (polling mode for this test)
         let mut timeout = 100000; // Increase timeout
-        while !dma.is_transfer_complete(channel.index()) && timeout > 0 {
+        while !irq_done.load(core::sync::atomic::Ordering::SeqCst) && timeout > 0 {
             timeout -= 1;
-            if irq_done.load(core::sync::atomic::Ordering::SeqCst) {
-                info!("DMA transfer completed via interrupt");
-                break;
-            }
+
             // Add periodic status check
             if timeout % 10000 == 0 {
                 debug!("DMA transfer in progress, timeout remaining: {}", timeout);
@@ -201,20 +139,6 @@ mod tests {
             info!("=== Final Status Debug ===");
             channel.debug_registers();
             dma.debug_status(channel.index());
-
-            // Check if the issue is with UART DMA requests
-            info!("=== Problem Analysis ===");
-            info!("✅ DMA Controller: Enabled and working");
-            info!("✅ Channel 0: Enabled and bound");
-            info!("✅ Data Source: 0x90124500 (4 bytes)");
-            info!("✅ FIFO Status: Has data (not empty)");
-            info!("❌ Current Address: 0x00000000 (no progress)");
-            info!("❌ Transfer Status: 0x00000000 (no completion)");
-            info!("");
-            info!("🔍 ROOT CAUSE: UART1 is not sending DMA TX requests");
-            info!("   - DMA has read data from memory into FIFO");
-            info!("   - UART1 TX is not requesting data via DMA");
-            info!("   - Need to configure UART1 DMA TX enable");
 
             return;
         }

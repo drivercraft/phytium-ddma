@@ -2,7 +2,7 @@
 #![recursion_limit = "512"]
 
 use core::ptr::NonNull;
-use log::trace;
+use log::{debug, trace};
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 
 extern crate alloc;
@@ -12,7 +12,7 @@ mod reg;
 
 pub use chan::{Channel, ChannelConfig};
 
-use crate::reg::{DdmaRegister, DmaChannelRegisters};
+use crate::reg::{DMA_STAT, DdmaRegister, DmaChannelRegisters};
 
 /// DMA transfer direction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,14 +92,14 @@ impl DDMA {
         // Perform software reset
         reg.dma_ctl.write(reg::DMA_CTL::DMA_SRST::SET);
         reg.dma_ctl.write(reg::DMA_CTL::DMA_SRST::CLEAR);
-
-        // Enable global interrupt
-        reg.dma_mask_int.write(reg::DMA_MASK_INT::GLOBAL_EN::SET);
+        reg.dma_mask_int.set(u32::MAX);
     }
 
     pub fn enable(&mut self) {
-        let reg = unsafe { self.reg.as_mut() };
-        reg.dma_ctl.modify(reg::DMA_CTL::DMA_ENABLE::SET);
+        self.reg()
+            .dma_mask_int
+            .modify(reg::DMA_MASK_INT::GLOBAL_EN::CLEAR);
+        self.reg().dma_ctl.modify(reg::DMA_CTL::DMA_ENABLE::SET);
     }
 
     pub fn disable(&mut self) {
@@ -141,8 +141,11 @@ impl DDMA {
             .set_channel_config(channel, config.slave_id as u32, true);
         self.reg().set_channel_bind(channel, true);
 
-        // Unmask channel interrupt (false means unmask/enable)
-        self.reg().set_channel_interrupt_mask(channel, false);
+        if config.irq {
+            self.reg().set_channel_interrupt_mask(channel, false);
+        } else {
+            self.reg().set_channel_interrupt_mask(channel, true);
+        }
 
         Some(channel_result)
     }
@@ -165,15 +168,15 @@ impl DDMA {
         let bind_status = reg.dma_channel_bind.get();
         let mask_int = reg.dma_mask_int.get();
 
-        trace!("DMA Controller Status:");
-        trace!(
+        debug!("DMA Controller Status:");
+        debug!(
             "  DMA_CTL: 0x{:08x} (enabled: {})",
             dma_ctl,
             (dma_ctl & 1) != 0
         );
-        trace!("  DMA_STAT: 0x{:08x}", dma_stat);
-        trace!("  BIND_STATUS: 0x{:08x}", bind_status);
-        trace!("  MASK_INT: 0x{:08x}", mask_int);
+        debug!("  DMA_STAT: 0x{:08x}", dma_stat);
+        debug!("  BIND_STATUS: 0x{:08x}", bind_status);
+        debug!("  MASK_INT: 0x{:08x}", mask_int);
 
         (dma_ctl, dma_stat, bind_status, mask_int)
     }
@@ -208,16 +211,68 @@ pub struct IrqHandler {
 unsafe impl Send for IrqHandler {}
 unsafe impl Sync for IrqHandler {}
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CompletedChannels {
+    channels: u8, // Bitmask of completed channels
+}
+
+impl CompletedChannels {
+    /// Check if a specific channel has completed
+    pub fn is_channel_completed(&self, channel: u8) -> bool {
+        if channel < 8 {
+            (self.channels & (1 << channel)) != 0
+        } else {
+            false
+        }
+    }
+
+    /// Get a bitmask of all completed channels
+    pub fn bitmask(&self) -> u8 {
+        self.channels
+    }
+
+    fn set_channel_completed(&mut self, channel: u8) {
+        if channel < 8 {
+            self.channels |= 1 << channel;
+        }
+    }
+}
+
 impl IrqHandler {
     /// Handle DMA interrupt
-    pub fn handle_irq(&self) {
+    pub fn handle_irq(&self) -> CompletedChannels {
         let reg = unsafe { self.reg.as_ref() };
-        let status = reg.dma_stat.get();
+        let status = reg.dma_stat.extract();
 
-        // Clear all completed transfers
-        if status != 0 {
-            reg.dma_stat.set(status);
+        let mut completed = CompletedChannels::default();
+        if status.is_set(DMA_STAT::CHAL0_SEL) {
+            completed.set_channel_completed(0);
         }
+        if status.is_set(DMA_STAT::CHAL1_SEL) {
+            completed.set_channel_completed(1);
+        }
+        if status.is_set(DMA_STAT::CHAL2_SEL) {
+            completed.set_channel_completed(2);
+        }
+        if status.is_set(DMA_STAT::CHAL3_SEL) {
+            completed.set_channel_completed(3);
+        }
+        if status.is_set(DMA_STAT::CHAL4_SEL) {
+            completed.set_channel_completed(4);
+        }
+        if status.is_set(DMA_STAT::CHAL5_SEL) {
+            completed.set_channel_completed(5);
+        }
+        if status.is_set(DMA_STAT::CHAL6_SEL) {
+            completed.set_channel_completed(6);
+        }
+        if status.is_set(DMA_STAT::CHAL7_SEL) {
+            completed.set_channel_completed(7);
+        }
+        // Clear all completed transfers
+        reg.dma_stat.set(u32::MAX);
+
+        completed
     }
 }
 

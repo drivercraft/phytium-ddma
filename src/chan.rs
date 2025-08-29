@@ -21,6 +21,7 @@ pub struct ChannelConfig {
     pub timeout_count: u32,
     pub blk_size: usize,
     pub dev_addr: u32,
+    pub irq: bool,
 }
 
 impl Channel {
